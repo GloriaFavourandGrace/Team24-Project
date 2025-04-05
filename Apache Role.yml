@@ -1,0 +1,42 @@
+---
+- name: Install Apache
+  apt:
+    name: apache2
+    state: present
+
+- name: Enable required Apache modules
+  apache2_module:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - rewrite
+    - headers
+  notify: Restart Apache
+
+- name: Configure Apache virtual host
+  template:
+    src: apache-vhost.conf.j2
+    dest: /etc/apache2/sites-available/{{ app_name }}.conf
+  notify: Restart Apache
+
+- name: Enable the site
+  file:
+    src: /etc/apache2/sites-available/{{ app_name }}.conf
+    dest: /etc/apache2/sites-enabled/{{ app_name }}.conf
+    state: link
+  notify: Restart Apache
+
+- name: Remove default Apache configuration
+  file:
+    path: /etc/apache2/sites-enabled/000-default.conf
+    state: absent
+  notify: Restart Apache
+
+- name: Make sure Apache is running and enabled
+  service:
+    name: apache2
+    state: started
+    enabled: yes
+
+- name: Create handler for Apache restart
+  meta: flush_handlers
