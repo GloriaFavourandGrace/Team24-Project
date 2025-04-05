@@ -1,0 +1,28 @@
+---
+- name: Deploy Angular Application
+  hosts: app_servers
+  become: yes
+  vars:
+    app_name: angular-devops-app
+    app_version: "{{ app_version }}"
+    deploy_path: /var/www/html
+    versions_path: /var/www/versions
+    app_domain: yourdomainname.com
+    db_host: "{{ hostvars[groups['db_servers'][0]]['ansible_host'] | default('localhost') }}"
+    rollback: "{{ rollback | default(false) }}"
+  
+  roles:
+    - common
+    - apache
+    - angular
+
+- name: Configure MariaDB
+  hosts: db_servers
+  become: yes
+  vars:
+    db_name: angular_db
+    db_user: angular_user
+    db_password: secure_password_here  # Use Ansible Vault in production
+  
+  roles:
+    - mariadb
