@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Clone Repo') {
             steps {
-                git 'https://github.com/GloriaFavourandGrace/Team24-Project.git'
+                echo "Repo already checked out by Jenkins (SCM)"
             }
         }
         stage('Build Angular App') {
@@ -33,23 +33,21 @@ pipeline {
         }
         stage('Deploy with Ansible') {
             steps {
-                ansiblePlaybook(
-                    playbook: 'playbook.yml',
-                    inventory: 'hosts.ini',
-                    extras: "-e version=${VERSION ?: "v1.0.${BUILD_NUMBER}"} -e artifact_path=${WORKSPACE}/${APP_NAME}-${VERSION ?: "v1.0.${BUILD_NUMBER}"}.tar.gz"
-                )
+                script {
+                    def version = params.VERSION ?: "v1.0.${BUILD_NUMBER}"
+                    def artifact = "${WORKSPACE}/${APP_NAME}-${version}.tar.gz"
+                    ansiblePlaybook(
+                        playbook: 'playbook.yml',
+                        inventory: 'hosts.ini',
+                        extras: "-e version=${version} -e artifact_path=${artifact}"
+                    )
+                }
             }
         }
     }
     post {
         success {
-            echo "Deployed Angular App version ${VERSION}"
+            echo "Deployed Angular App version ${VERSION ?: "v1.0.${BUILD_NUMBER}"}"
         }
     }
 }
-
-
-
-
-
-

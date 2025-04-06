@@ -1,2 +1,41 @@
 ---
 # tasks file for roles/deploy
+- name: Install Apache2
+  apt:
+    name: apache2
+    update_cache: yes
+    state: present
+- name: Start and enable Apache2
+  service:
+    name: apache2
+    state: started
+    enabled: yes
+- name: Ensure /var/www/html exists
+  file:
+    path: "/var/www/html"
+    state: directory
+    mode: '0755'
+- name: Ensure versioned deployment folder exists
+  file:
+    path: "/var/www/html/{{ version }}"
+    state: directory
+- name: Copy artifact to remote server
+  copy:
+    src: "{{ artifact_path }}"
+    dest: "/tmp/{{ version }}.tar.gz"
+- name: Extract artifact to version folder
+  unarchive:
+    src: "/tmp/{{ version }}.tar.gz"
+    dest: "/var/www/html/{{ version }}"
+    remote_src: yes
+- name: Backup current symlink as previous (if it exists)
+  command: mv /var/www/html/current /var/www/html/previous
+  args:
+    removes: /var/www/html/previous
+  ignore_errors: yes
+- name: Update current symlink to point to new version
+  file:
+    src: "/var/www/html/{{ version }}"
+    dest: "/var/www/html/current"
+    state: link
+    force: yes
