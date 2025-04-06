@@ -1,28 +1,37 @@
 ---
 - name: Deploy Angular Application
-  hosts: app_servers
+  hosts: web
   become: yes
   vars:
-    app_name: angular-devops-app
-    app_version: "{{ app_version }}"
-    deploy_path: /var/www/html
-    versions_path: /var/www/versions
-    app_domain: yourdomainname.com
-    db_host: "{{ hostvars[groups['db_servers'][0]]['ansible_host'] | default('localhost') }}"
-    rollback: "{{ rollback | default(false) }}"
-  
+    version: "{{ version }}"
+    artifact_path: "{{ artifact_path }}"
   roles:
-    - common
-    - apache
-    - angular
-
-- name: Configure MariaDB
-  hosts: db_servers
+  - apache
+  - deploy
+- name: Configure MariaDB (Optional)
+  hosts: db
   become: yes
   vars:
     db_name: angular_db
     db_user: angular_user
-    db_password: secure_password_here  # Use Ansible Vault in production
-  
+    db_password: secure_password_here # Use Ansible Vault in real projects
   roles:
-    - mariadb
+  - mariadb
+- name: Rollback Angular App
+  hosts: web
+  become: yes
+  vars:
+    version: "rollback"
+    artifact_path: "rollback"
+  tasks:
+  - import_tasks: roles/deploy/tasks/rollback.yml
+  when: rollback | default(false)
+- name: Deploy Angular App (Install + Deploy)
+  hosts: web
+  become: yes
+  vars:
+    version: "{{ version }}"
+    artifact_path: "{{ artifact_path }}"
+  roles:
+  - deploy
+  when: not rollback | default(false)
