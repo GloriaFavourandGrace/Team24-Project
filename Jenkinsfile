@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Clone Repo') {
             steps {
-                git 'https://github.com/GloriaFavourandGrace/Team24-Project.git'
+                echo "Repo already checked out by Jenkins (SCM)"
             }
         }
         stage('Build Angular App') {
