@@ -1,0 +1,23 @@
+project-structure/
+├── ansible.cfg
+├── inventory
+├── playbook.yml
+└── roles/
+    ├── apache/
+    │   ├── tasks/
+    │   │   └── main.yml
+    │   └── templates/
+    │       └── apache-vhost.conf.j2
+    ├── angular/
+    │   └── tasks/
+    │       └── main.yml
+    ├── mariadb/
+    │   ├── files/
+    │   │   └── seed_data.sql
+    │   ├── tasks/
+    │   │   └── main.yml
+    │   └── templates/
+    │       └── my.cnf.j2
+    └── common/
+        └── tasks/
+            └── main.yml

@@ -1,0 +1,82 @@
+pipeline {
+    agent any
+    
+    parameters {
+        string(name: 'VERSION', defaultValue: '', description: 'Version to deploy (leave empty for latest)')
+        booleanParam(name: 'ROLLBACK', defaultValue: false, description: 'Perform rollback to specified version')
+    }
+    
+    environment {
+        APP_NAME = "angular-devops-app"
+        ARTIFACT_PATH = "artifacts"
+    }
+    
+    stages {
+        stage('Prepare') {
+            steps {
+                script {
+                    // Set version based on timestamp if not rolling back
+                    if (!params.ROLLBACK) {
+                        env.BUILD_VERSION = "${env.BUILD_NUMBER}-${new Date().format('yyyyMMdd-HHmmss')}"
+                    } else {
+                        env.BUILD_VERSION = params.VERSION
+                    }
+                    
+                    echo "Working with version: ${env.BUILD_VERSION}"
+                }
+            }
+        }
+        
+        stage('Build') {
+            when {
+                expression { return !params.ROLLBACK }
+            }
+            steps {
+                sh 'npm install'
+                sh 'npm run build'
+                
+                // Archive the build as a versioned artifact
+                sh "mkdir -p ${ARTIFACT_PATH}"
+                sh "tar -czf ${ARTIFACT_PATH}/${APP_NAME}-${env.BUILD_VERSION}.tar.gz -C dist/ ."
+                
+                // Store version info in a file for reference
+                sh "echo ${env.BUILD_VERSION} > ${ARTIFACT_PATH}/latest-version.txt"
+                
+                // Archive artifacts
+                archiveArtifacts artifacts: "${ARTIFACT_PATH}/${APP_NAME}-${env.BUILD_VERSION}.tar.gz", fingerprint: true
+                archiveArtifacts artifacts: "${ARTIFACT_PATH}/latest-version.txt", fingerprint: true
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                script {
+                    if (params.ROLLBACK && params.VERSION == '') {
+                        error "Rollback requires a version parameter!"
+                    }
+                    
+                    // If rolling back, copy the archived artifact
+                    if (params.ROLLBACK) {
+                        copyArtifacts(projectName: env.JOB_NAME, selector: specific("${params.VERSION}"), filter: "${ARTIFACT_PATH}/${APP_NAME}-${env.BUILD_VERSION}.tar.gz")
+                    }
+                    
+                    // Run ansible playbook with the version
+                    ansiblePlaybook(
+                        playbook: 'playbook.yml',
+                        inventory: 'inventory',
+                        extraVars: [
+                            app_version: env.BUILD_VERSION,
+                            rollback: params.ROLLBACK
+                        ]
+                    )
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "Build and deployment successful for version ${env.BUILD_VERSION}"
+        }
+    }
+}
