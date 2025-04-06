@@ -1,82 +1,55 @@
 pipeline {
     agent any
-    
     parameters {
-        string(name: 'VERSION', defaultValue: '', description: 'Version to deploy (leave empty for latest)')
-        booleanParam(name: 'ROLLBACK', defaultValue: false, description: 'Perform rollback to specified version')
+        string(name: 'VERSION', defaultValue: '', description: 'Optional: deploy specific version (for rollback)')
     }
-    
     environment {
         APP_NAME = "angular-devops-app"
-        ARTIFACT_PATH = "artifacts"
+        BUILD_DIR = "src/dist/angular-devops-app"
     }
-    
     stages {
-        stage('Prepare') {
+        stage('Clone Repo') {
             steps {
-                script {
-                    // Set version based on timestamp if not rolling back
-                    if (!params.ROLLBACK) {
-                        env.BUILD_VERSION = "${env.BUILD_NUMBER}-${new Date().format('yyyyMMdd-HHmmss')}"
-                    } else {
-                        env.BUILD_VERSION = params.VERSION
-                    }
-                    
-                    echo "Working with version: ${env.BUILD_VERSION}"
+                git 'https://github.com/GloriaFavourandGrace/Team24-Project.git'
+            }
+        }
+        stage('Build Angular App') {
+            steps {
+                dir('src') {
+                    sh 'npm install'
+                    sh 'npm run build'
                 }
             }
         }
-        
-        stage('Build') {
-            when {
-                expression { return !params.ROLLBACK }
-            }
-            steps {
-                sh 'npm install'
-                sh 'npm run build'
-                
-                // Archive the build as a versioned artifact
-                sh "mkdir -p ${ARTIFACT_PATH}"
-                sh "tar -czf ${ARTIFACT_PATH}/${APP_NAME}-${env.BUILD_VERSION}.tar.gz -C dist/ ."
-                
-                // Store version info in a file for reference
-                sh "echo ${env.BUILD_VERSION} > ${ARTIFACT_PATH}/latest-version.txt"
-                
-                // Archive artifacts
-                archiveArtifacts artifacts: "${ARTIFACT_PATH}/${APP_NAME}-${env.BUILD_VERSION}.tar.gz", fingerprint: true
-                archiveArtifacts artifacts: "${ARTIFACT_PATH}/latest-version.txt", fingerprint: true
-            }
-        }
-        
-        stage('Deploy') {
+        stage('Package Artifact') {
             steps {
                 script {
-                    if (params.ROLLBACK && params.VERSION == '') {
-                        error "Rollback requires a version parameter!"
-                    }
-                    
-                    // If rolling back, copy the archived artifact
-                    if (params.ROLLBACK) {
-                        copyArtifacts(projectName: env.JOB_NAME, selector: specific("${params.VERSION}"), filter: "${ARTIFACT_PATH}/${APP_NAME}-${env.BUILD_VERSION}.tar.gz")
-                    }
-                    
-                    // Run ansible playbook with the version
-                    ansiblePlaybook(
-                        playbook: 'playbook.yml',
-                        inventory: 'inventory',
-                        extraVars: [
-                            app_version: env.BUILD_VERSION,
-                            rollback: params.ROLLBACK
-                        ]
-                    )
+                    def version = params.VERSION ?: "v1.0.${BUILD_NUMBER}"
+                    env.VERSION = version
+                    sh "tar -czf ${APP_NAME}-${version}.tar.gz -C ${BUILD_DIR} ."
+                    archiveArtifacts artifacts: "${APP_NAME}-${version}.tar.gz"
                 }
+            }
+        }
+        stage('Deploy with Ansible') {
+            steps {
+                ansiblePlaybook(
+                    playbook: 'playbook.yml',
+                    inventory: 'hosts.ini',
+                    extras: "-e version=${VERSION ?: "v1.0.${BUILD_NUMBER}"} -e artifact_path=${WORKSPACE}/${APP_NAME}-${VERSION ?: "v1.0.${BUILD_NUMBER}"}.tar.gz"
+                )
             }
         }
     }
-    
     post {
         success {
-            echo "Build and deployment successful for version ${env.BUILD_VERSION}"
+            echo "Deployed Angular App version ${VERSION}"
         }
     }
 }
+
+
+
+
+
+
