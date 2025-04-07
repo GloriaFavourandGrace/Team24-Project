@@ -2,7 +2,7 @@
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
   "defaultProject": "angular-devops-app",
-  "projects": {
+   "projects": {
     "angular-devops-app": {
       "projectType": "application",
       "root": "",
