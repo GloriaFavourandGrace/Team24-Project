@@ -17,8 +17,8 @@
             "main": "app/main.ts",
             "polyfills": "app/polyfills.ts",
             "tsConfig": "tsconfig.app.json",
-            "assets": ["app/favicon.ico", "app/assets"],
-            "styles": ["app/styles.css"],
+            "assets": [],
+            "styles": [],
             "scripts": []
           },
           "configurations": {
