@@ -17,7 +17,7 @@ pipeline {
             steps {
                 dir('src') {
                     sh 'npm install'
-                    sh 'npm run build'
+                    sh 'npm run build -- --configuration production'
                 }
             }
         }
